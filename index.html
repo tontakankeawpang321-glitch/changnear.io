@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Technician Hub - ศูนย์รวมช่างใกล้บ้าน</title>
+    <title>Technician- ศูนย์รวมช่างใกล้บ้าน</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -78,7 +78,7 @@
     <div class="w-full max-w-md bg-white shadow-2xl h-screen md:h-[850px] md:rounded-[3rem] overflow-hidden relative flex flex-col border border-blue-100" id="app">
         
         <!-- ================= หน้าหลัก (HOME) ================= -->
-        <div id="view-home" class="view h-full flex flex-col bg-slate-50">
+        <div id="view-home" class="view h-full flex flex-col bg-slate-50 relative">
             <header class="bg-white px-6 pt-8 pb-4 z-20 border-b border-blue-100 rounded-b-[2rem] shadow-sm">
                 <div class="flex justify-between items-center mb-6">
                     <div class="flex items-center gap-3">
@@ -86,12 +86,13 @@
                             <i data-lucide="wrench"></i>
                         </div>
                         <div>
-                            <h1 class="text-xl font-bold tracking-tight text-slate-800">ช่างใกล้บ้าน</h1>
+                            <h1 class="text-xl font-bold tracking-tight text-slate-800">Technician Hub</h1>
                             <p class="text-[10px] text-blue-500 font-bold uppercase tracking-widest">ศูนย์รวมช่างใกล้บ้านคุณ</p>
                         </div>
                     </div>
-                    <button onclick="fetchPosts()" class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-50 text-blue-400 hover:text-blue-600 transition-colors">
-                        <i data-lucide="refresh-cw" width="18"></i>
+                    <!-- ปุ่ม Refresh เล็กๆ ด้านบนยังคงไว้เผื่อกดรีเฟรชข้อมูล -->
+                    <button onclick="fetchPosts()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 transition-colors">
+                        <i data-lucide="rotate-cw" width="16"></i>
                     </button>
                 </div>
                 
@@ -118,11 +119,27 @@
                 <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" id="category-filters"></div>
             </header>
 
-            <div id="post-list" class="flex-1 overflow-y-auto p-5 space-y-5 pb-24 relative"></div>
+            <div id="post-list" class="flex-1 overflow-y-auto p-5 space-y-5 pb-28 relative"></div>
 
-            <button onclick="router.navigate('create')" class="absolute bottom-8 right-6 w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-200 z-30">
-                <i data-lucide="plus" width="32"></i>
-            </button>
+            <!-- Bottom Navigation Bar -->
+            <div class="absolute bottom-0 w-full bg-white/95 backdrop-blur-md border-t border-blue-100 flex justify-between items-end px-8 py-2 pb-6 z-40 md:rounded-b-[3rem]">
+                <!-- ปุ่มหน้าหลัก -->
+                <button onclick="fetchPosts()" class="flex flex-col items-center gap-1 text-blue-600 active:scale-95 transition-transform w-16">
+                    <i data-lucide="home" width="24" stroke-width="2.5"></i>
+                    <span class="text-[10px] font-bold">หน้าหลัก</span>
+                </button>
+
+                <!-- ปุ่มลงประกาศ (ตรงกลาง เด่นๆ) -->
+                <button onclick="router.navigate('create')" class="relative -top-6 bg-blue-600 text-white p-4 rounded-2xl shadow-xl shadow-blue-200 border-4 border-slate-100 active:scale-95 transition-transform flex flex-col items-center justify-center group">
+                    <i data-lucide="plus" width="32" stroke-width="3" class="group-hover:rotate-90 transition-transform"></i>
+                </button>
+                
+                <!-- ปุ่มใกล้ฉัน -->
+                <button onclick="openNearMe()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-blue-500 active:scale-95 transition-transform w-16">
+                    <i data-lucide="map-pinned" width="24"></i>
+                    <span class="text-[10px] font-bold">ใกล้ฉัน</span>
+                </button>
+            </div>
         </div>
 
         <!-- ================= หน้ารายละเอียด (DETAIL) ================= -->
@@ -355,6 +372,11 @@
             },
             back: () => router.navigate('home')
         };
+
+        // ฟังก์ชันเปิด Google Maps ค้นหาช่างใกล้ฉัน
+        function openNearMe() {
+            window.open('https://www.google.com/maps/search/ช่างใกล้ฉัน', '_blank');
+        }
 
         // Lightbox Functions
         function openLightbox(src) {
