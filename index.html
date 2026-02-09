@@ -90,10 +90,18 @@
                             <p class="text-[10px] text-blue-500 font-bold uppercase tracking-widest">ศูนย์รวมช่างใกล้บ้านคุณ</p>
                         </div>
                     </div>
-                    <!-- ปุ่ม Refresh เล็กๆ ด้านบนยังคงไว้เผื่อกดรีเฟรชข้อมูล -->
-                    <button onclick="fetchPosts()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:text-blue-600 transition-colors">
-                        <i data-lucide="rotate-cw" width="16"></i>
-                    </button>
+                    
+                    <div class="flex gap-2">
+                        <!-- ปุ่มรายการโปรด -->
+                        <button onclick="openFavorites()" class="w-10 h-10 flex items-center justify-center rounded-full bg-pink-50 text-pink-400 hover:bg-pink-100 hover:text-pink-600 transition-colors relative">
+                            <i data-lucide="heart" width="18"></i>
+                            <span id="fav-count-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full hidden">0</span>
+                        </button>
+                        <!-- ปุ่ม Refresh -->
+                        <button onclick="fetchPosts()" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                            <i data-lucide="rotate-cw" width="18"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="space-y-3 mb-4">
@@ -283,6 +291,24 @@
         </div>
     </div>
 
+    <!-- Favorites Dialog -->
+    <div id="favorites-dialog" class="fixed inset-0 z-50 bg-black/60 hidden flex items-end md:items-center justify-center fade-in backdrop-blur-sm" onclick="closeFavorites()">
+        <div class="bg-slate-50 w-full max-w-md h-[85vh] md:h-[700px] md:rounded-[2.5rem] rounded-t-[2.5rem] flex flex-col overflow-hidden shadow-2xl relative" onclick="event.stopPropagation()">
+            <div class="bg-white px-6 py-5 border-b border-slate-100 flex justify-between items-center rounded-t-[2.5rem]">
+                <div class="flex items-center gap-2">
+                    <div class="bg-pink-100 p-2 rounded-xl text-pink-500">
+                        <i data-lucide="heart" width="20" fill="currentColor"></i>
+                    </div>
+                    <h3 class="font-bold text-lg text-slate-800">รายการโปรด</h3>
+                </div>
+                <button onclick="closeFavorites()" class="p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100"><i data-lucide="x" width="20"></i></button>
+            </div>
+            <div id="favorites-list" class="flex-1 overflow-y-auto p-5 space-y-4 pb-12">
+                <!-- Favorites content here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Lightbox Overlay -->
     <div id="lightbox" class="fixed inset-0 z-50 bg-black/95 hidden flex items-center justify-center p-4 fade-in backdrop-blur-sm" onclick="closeLightbox()">
         <button class="absolute top-6 right-6 text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-50">
@@ -381,12 +407,113 @@
             back: () => router.navigate('home')
         };
 
-        // ฟังก์ชันเปิด Google Maps ค้นหาช่างใกล้ฉัน
+        // ========== Favorites System ==========
+        function getFavorites() {
+            return JSON.parse(localStorage.getItem('technician_favs') || '[]');
+        }
+
+        function toggleFavorite(e, postId) {
+            e.stopPropagation();
+            let favs = getFavorites();
+            const index = favs.findIndex(f => f.id === postId);
+            const post = state.posts.find(p => p.id === postId);
+
+            if (index > -1) {
+                favs.splice(index, 1);
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success', 
+                    title: 'ลบจากรายการโปรด', showConfirmButton: false, timer: 1000
+                });
+            } else if (post) {
+                // Save simplified object
+                favs.push({
+                    id: post.id,
+                    title: post.title,
+                    wage: post.wage,
+                    paymentType: post.paymentType,
+                    province: post.province,
+                    district: post.district,
+                    image: post.images?.[0] || '',
+                    categoryKey: post.categoryKey,
+                    jobType: post.jobType
+                });
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success', 
+                    title: 'บันทึกรายการโปรด', showConfirmButton: false, timer: 1000
+                });
+            }
+            localStorage.setItem('technician_favs', JSON.stringify(favs));
+            updateFavCount();
+            
+            // Re-render based on current view context
+            if(state.currentView === 'home') renderHome();
+            if(state.currentView === 'detail' && state.selectedPost === postId) renderDetail(postId);
+            
+            // Update dialog list if open
+            if(!document.getElementById('favorites-dialog').classList.contains('hidden')) {
+                renderFavoritesList();
+            }
+        }
+
+        function updateFavCount() {
+            const count = getFavorites().length;
+            const badge = document.getElementById('fav-count-badge');
+            badge.innerText = count;
+            badge.classList.toggle('hidden', count === 0);
+        }
+
+        function openFavorites() {
+            document.getElementById('favorites-dialog').classList.remove('hidden');
+            renderFavoritesList();
+        }
+
+        function closeFavorites() {
+            document.getElementById('favorites-dialog').classList.add('hidden');
+        }
+
+        function renderFavoritesList() {
+            const favs = getFavorites();
+            const list = document.getElementById('favorites-list');
+            
+            if (favs.length === 0) {
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-64 text-slate-300">
+                        <i data-lucide="heart-off" width="48" class="mb-4 opacity-50"></i>
+                        <p class="font-bold text-sm">ยังไม่มีรายการโปรด</p>
+                    </div>`;
+            } else {
+                list.innerHTML = favs.map(p => {
+                    const displayImage = getDirectImage(p.image);
+                    const wage = Number(p.wage) || 0;
+                    return `
+                    <div onclick="closeFavorites(); router.navigate('detail', '${p.id}')" class="flex gap-4 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm cursor-pointer hover:border-blue-200 transition-colors">
+                        <div class="w-20 h-20 rounded-xl bg-slate-100 shrink-0 overflow-hidden">
+                            <img src="${displayImage}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1 min-w-0 py-1">
+                            <h4 class="font-bold text-slate-800 text-sm truncate mb-1">${p.title}</h4>
+                            <p class="text-[10px] text-slate-500 mb-2 flex items-center gap-1">
+                                <i data-lucide="map-pin" width="10"></i> ${p.district}, ${p.province}
+                            </p>
+                            <div class="flex justify-between items-end">
+                                <span class="text-blue-600 font-black text-sm">฿${wage.toLocaleString()}</span>
+                                <button onclick="toggleFavorite(event, '${p.id}')" class="text-pink-500 hover:scale-110 transition-transform">
+                                    <i data-lucide="trash-2" width="16"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `}).join('');
+            }
+            lucide.createIcons();
+        }
+
+        // ======================================
+
         function openNearMe() {
             window.open('https://www.google.com/maps/search/ช่างใกล้ฉัน', '_blank');
         }
 
-        // Lightbox Functions
         function openLightbox(src) {
             const lightbox = document.getElementById('lightbox');
             const img = document.getElementById('lightbox-img');
@@ -444,7 +571,6 @@
             select.innerHTML = categories.map(cat => 
                 `<option value="${cat.label.split('/')[0]}">${cat.label}</option>`
             ).join('');
-            // Set initial value if needed, but 'ทั้งหมด' is first anyway
             select.value = state.filterCategory;
         }
 
@@ -484,8 +610,7 @@
 
             const province = document.getElementById('filter-province').value;
             const district = document.getElementById('filter-district').value;
-            
-            // Removed old category grid generation
+            const favs = getFavorites(); // Load favorites
             
             const filtered = state.posts.filter(p => {
                 const matchesCategory = state.filterCategory === 'ทั้งหมด' || (p.categoryKey && p.categoryKey.includes(state.filterCategory));
@@ -509,9 +634,10 @@
                     const wage = Number(p.wage) || 0;
                     const displayImage = getDirectImage(p.images?.[0]);
                     const imageCount = p.images.length;
+                    const isFav = favs.some(f => f.id === p.id);
 
                     return `
-                    <div onclick="router.navigate('detail', '${p.id}')" class="product-card bg-white rounded-[2rem] shadow-sm border border-blue-100 overflow-hidden fade-in cursor-pointer group">
+                    <div onclick="router.navigate('detail', '${p.id}')" class="product-card bg-white rounded-[2rem] shadow-sm border border-blue-100 overflow-hidden fade-in cursor-pointer group mb-4">
                         <div class="h-48 bg-slate-100 relative overflow-hidden">
                             <img src="${displayImage}" 
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
@@ -519,6 +645,9 @@
                             <div class="absolute top-4 left-4 flex flex-col gap-2">
                                 <span class="${badgeColor} text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-widest">${p.jobType}</span>
                             </div>
+                            <button onclick="toggleFavorite(event, '${p.id}')" class="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${isFav ? 'bg-pink-500 text-white' : 'bg-black/30 text-white hover:bg-pink-500'}">
+                                <i data-lucide="heart" width="18" fill="${isFav ? 'currentColor' : 'none'}"></i>
+                            </button>
                             ${imageCount > 1 ? `<div class="absolute bottom-4 right-4 bg-black/50 text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1 backdrop-blur-sm"><i data-lucide="image" width="10"></i> ${imageCount}</div>` : ''}
                         </div>
                         <div class="p-6">
@@ -546,11 +675,13 @@
         }
 
         function renderDetail(postId) {
+            state.selectedPost = postId;
             const post = state.posts.find(p => String(p.id) === String(postId));
             if(!post) return router.back();
             
             const validImages = post.images.filter(i => i).map(url => getDirectImage(url));
             const wage = Number(post.wage) || 0;
+            const isFav = getFavorites().some(f => f.id === post.id);
 
             let imageLayout = `
                 <div class="flex h-full overflow-x-auto snap-x snap-mandatory scrollbar-hide bg-slate-900">
@@ -573,6 +704,10 @@
                 <div class="relative h-[350px]">
                     <button onclick="router.back()" class="absolute top-6 left-6 z-20 bg-white/95 p-3 rounded-2xl shadow-xl text-slate-800 transition-transform active:scale-90">
                         <i data-lucide="arrow-left"></i>
+                    </button>
+                    <!-- Favorite Button in Detail -->
+                    <button onclick="toggleFavorite(event, '${post.id}')" class="absolute top-6 right-20 z-20 p-3 rounded-2xl shadow-xl transition-transform active:scale-90 ${isFav ? 'bg-pink-500 text-white' : 'bg-white/95 text-slate-400'}">
+                        <i data-lucide="heart" fill="${isFav ? 'currentColor' : 'none'}"></i>
                     </button>
                     <!-- ปุ่มลบประกาศ -->
                     <button onclick="confirmDelete('${post.id}')" class="absolute top-6 right-6 z-20 bg-white/95 p-3 rounded-2xl shadow-xl text-red-500 transition-transform active:scale-90 hover:bg-red-50">
@@ -777,7 +912,7 @@
             }
         });
 
-        window.onload = () => { initLocationSelects(); initCategorySelect(); fetchPosts(); lucide.createIcons(); };
+        window.onload = () => { initLocationSelects(); initCategorySelect(); fetchPosts(); updateFavCount(); lucide.createIcons(); };
     </script>
 </body>
 </html>
